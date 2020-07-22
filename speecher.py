@@ -1,13 +1,29 @@
 import os
 import sys
+import time
 import deepspeech as ds
 import numpy as np
 import pyaudio as pa
 
-def main():
-    model = ds.Model('../../deepspeech-0.7.4-models.pbmm')
-    model.enableExternalScorer('../../deepspeech-0.7.4-models.scorer')
+model = ds.Model('../../deepspeech-0.7.4-models.pbmm')
+model.enableExternalScorer('../../deepspeech-0.7.4-models.scorer')
+dsStream = model.createStream()
 
+def pa_callback(in_data,      # recorded data if input=True; else None
+                frame_count,  # number of frames
+                time_info,    # dictionary
+                status_flags):# PaCallbackFlags
+
+    rr = np.frombuffer(in_data, np.int16)
+    dsStream.feedAudioContent(rr)
+    ttt = dsStream.intermediateDecode()
+    print(ttt)
+
+    out_data = None
+    flag = pa.paContinue
+    return (out_data, flag)
+
+def main():
     # instantiate PyAudio (1)
     p = pa.PyAudio()
 
@@ -17,25 +33,22 @@ def main():
                     channels=1,
                     input=True,
                     input_device_index=5,
-                    rate=16000)
+                    rate=16000,
+                    frames_per_buffer=2048*16,
+                    stream_callback=pa_callback)
 
     stream.start_stream()
 
-    rr = stream.read(100000)
-    rr = np.frombuffer(rr, np.int16)
-    # print(rr)
-
-    ttt = model.stt(rr)
-    print(ttt)
-
-    # stop stream (4)
-    stream.stop_stream()
-    stream.close()
-
-    # close PyAudio (5)
-    p.terminate()
-
-    return
+    try:
+        while stream.is_active:
+            time.sleep(5)
+    except KeyboardInterrupt:
+        print('interrupted!')
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+        dsStream.freeStream()
+        return
 
 if __name__ == "__main__":
     main()

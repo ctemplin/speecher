@@ -27,12 +27,12 @@ def main():
     # instantiate PyAudio (1)
     p = pa.PyAudio()
 
-    print(p.get_default_input_device_info())
+    input_device_index = p.get_default_input_device_info()['index']
 
     stream = p.open(format=pa.paInt16,
                     channels=1,
                     input=True,
-                    input_device_index=5,
+                    input_device_index=input_device_index,
                     rate=16000,
                     frames_per_buffer=2048*16,
                     stream_callback=pa_callback)
